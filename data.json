@@ -1,0 +1,18 @@
+{
+  "Arguments": {
+    "NAME": "say_hello2",
+    "IMAGE": "alpine",
+    "STAGE": "ci",
+    "WORKING_DIRECTORY": "{{main_clone}}",
+    "ENVIRONMENT": [
+      "BRANCH={{CF_BRANCH}}"
+    ],
+    "COMMANDS": [
+      "echo 'Hello %VALUE%' on $BRANCH"
+    ],
+    "VALUES": "project1,project2,project3",
+    "DEPENDS": [
+      "say_hello"
+    ]
+  }
+}

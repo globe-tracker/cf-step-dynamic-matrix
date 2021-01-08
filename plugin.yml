@@ -25,16 +25,16 @@ metadata:
         steps:
           say_hello:
             title: Running multiple dynamic commands
-            type: globetracker/dynamic-matrix
+            type: globetracker/dynamic-1d-matrix-freestyle
             arguments:
               NAME: "say_hello"
-              MATRIX_IMAGE: alpine
-              STAGE: ci
+              IMAGE: "alpine"
+              STAGE: "ci"
               WORKING_DIRECTORY: "{{main_clone}}"
               ENVIRONMENT: 
-              - BRANCH: "{{CF_BRANCH}}"
+              - "BRANCH={{CF_BRANCH}}"
               COMMANDS:
-              - "echo 'Hello %PROJECTS%' on $BRANCH"
+              - "echo 'Hello %VALUE%' on $BRANCH"
               VALUES: "project1,project2,project3"
     - description: example-2
       workflow:
@@ -42,18 +42,18 @@ metadata:
         steps:
           say_hello:
             title: Running multiple dynamic commands
-            type: globetracker/dynamic-matrix
+            type: globetracker/dynamic-1d-matrix-freestyle
             arguments:
               NAME: "say_hello2"
-              MATRIX_IMAGE: alpine
-              STAGE: ci
+              IMAGE: "alpine"
+              STAGE: "ci"
               COMMANDS:
-              - "echo 'Hello %PROJECTS%'"
+              - "echo 'Hello %VALUE%'"
               VALUES: "project1,project2,project3"
               DEPENDS: 
               - "say_hello_step"
   latest: true
-  version: 1.0.0
+  version: 1.0.3
 spec:
   arguments: |-
     {
@@ -119,33 +119,34 @@ spec:
       title: Info message
       image: alpine
       commands:
-        - echo "Creating [[ .Arguments.NAME ]], a dynamic 1 dimensional matrix of [[ len  .Arguments.VALUES ]] values"   
+        - echo "Creating [[ .Arguments.NAME ]], a dynamic 1 dimensional matrix of [[ strings.Split "," .Arguments.VALUES | len ]] values"   
     [[ $.Arguments.NAME ]]_step:
       type: parallel
       stage: [[ $.Arguments.STAGE ]]
       steps:
-        [[ range $index, $value :=(strings.Split "," .Arguments.VALUES) ]]
+        [[- range $index, $value :=(strings.Split "," .Arguments.VALUES) ]]
         [[ $.Arguments.NAME ]]_[[ $index ]]:
           type: freestyle
-          title: Running step [[ $.Arguments.NAME ]] [[ $index]]
+          title: Running step [[ add $index 1]] of [[ $.Arguments.NAME ]]
           image: [[ $.Arguments.IMAGE ]]
-          [[ if $.Arguments.ENVIRONMENT ]]
+          [[- if $.Arguments.ENVIRONMENT ]]
           environment:
-          [[ range $envValue := $.Arguments.ENVIRONMENT]]
-          - [[ $envValue.key ]]=[[ $env.Value ]]
-          [[ end ]]
-          [[ if $.Arguments.WORKING_DIRECTORY ]]
+          [[- range $.Arguments.ENVIRONMENT]]
+          - [[ . ]]
+          [[- end ]]
+          [[- end ]]
+          [[- if $.Arguments.WORKING_DIRECTORY ]]
           working_directory: [[ $.Arguments.WORKING_DIRECTORY ]]
-          [[ end ]]
+          [[- end ]]
           commands:
-          [[ range $command := $.Arguments.COMMANDS]]
-          - [[ strings.ReplaceAll %project% $value $command ]]
-          [[ end ]]
-        [[ end ]]
-      [[ if $.Arguments.DEPENDS ]]
+          [[- range $command := $.Arguments.COMMANDS]]
+          - [[ strings.ReplaceAll "%VALUE%" $value $command ]]
+          [[- end ]]
+        [[- end ]]
+      [[- if $.Arguments.DEPENDS ]]
       when:
         steps:
-          [[ range $index, $dependOn :=$.Arguments.DEPENDS ]]
-          - name: [[ .$dependOn ]]
-          [[ end ]]
-      [[ end ]]
+          [[- range $index, $dependOn :=$.Arguments.DEPENDS ]]
+          - name: [[ $dependOn ]]
+          [[- end ]]
+      [[- end ]]
