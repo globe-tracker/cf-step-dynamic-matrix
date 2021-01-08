@@ -53,7 +53,7 @@ metadata:
               DEPENDS: 
               - "say_hello_step"
   latest: true
-  version: 1.0.3
+  version: 1.0.4
 spec:
   arguments: |-
     {
@@ -101,7 +101,7 @@ spec:
             "type": "array",
             "description": "list of environment variables",
             "items": {
-              "type": "object"
+              "type": "string"
             }
         },
         "WORKING_DIRECTORY": {
