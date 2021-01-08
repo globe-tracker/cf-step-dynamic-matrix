@@ -1,10 +1,10 @@
 version: '1.0'
 kind: step-type
 metadata:
-  name: globetracker-cf/dynamic-matrix
+  name: globetracker-cf/dynamic-1d-matrix-freestyle
   isPublic: true
   description: |
-    This generates a dynamic matrix of steps
+    This generates a dynamic 1D matrix of freestyle steps
   sources:
     - 'https://github.com/globe-tracker/cf-step-dynamic-matrix.git'
   stage: incubating
@@ -16,28 +16,47 @@ metadata:
   tags: []
   icon:
     type: svg
-    url: https://cdn.worldvectorlogo.com/logos/git.svg
+    url: https://raw.githubusercontent.com/globe-tracker/cf-step-dynamic-matrix/main/locator.svg
     background: '#f4f4f4'
   examples:
     - description: example-1
       workflow:
         version: '1.0'
         steps:
-          checkout_many_projects:
-            title: Checking out my Git projects
-            type: kostis-codefresh/multi-git-clone
+          say_hello:
+            title: Running multiple dynamic commands
+            type: globetracker-cf/dynamic-matrix
             arguments:
-              GIT_REVISION: 'master'
-              GIT_PROVIDER: 'github'
-              GIT_PROJECTS: 
-                - 'codefresh-contrib/ruby-on-rails-sample-app'
-                - 'kubernetes/sample-apiserver'
-                - 'kostis-codefresh/nestjs-example'
-                - 'spring-projects/spring-petclinic'
+              NAME: "say_hello"
+              MATRIX_IMAGE: alpine
+              STAGE: ci
+              WORKING_DIRECTORY: "{{main_clone}}"
+              ENVIRONMENT: 
+              - BRANCH: "{{CF_BRANCH}}"
+              COMMANDS:
+              - "echo 'Hello %PROJECTS%' on $BRANCH"
+              VALUES: "project1,project2,project3"
+    - description: example-2
+      workflow:
+        version: '1.0'
+        steps:
+          say_hello:
+            title: Running multiple dynamic commands
+            type: globetracker-cf/dynamic-matrix
+            arguments:
+              NAME: "say_hello2"
+              MATRIX_IMAGE: alpine
+              STAGE: ci
+              COMMANDS:
+              - "echo 'Hello %PROJECTS%'"
+              VALUES: 
+              - PROJECTS: "project1,project2,project3"
+              DEPENDS: 
+              - "say_hello_step"
   latest: true
   version: 1.0.0
 spec:
-  arguments: |-
+  arguments: |
     {
         "definitions": {},
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -45,44 +64,89 @@ spec:
         "additionalProperties": false,
         "patterns": [],
         "required": [
-          "GIT_PROJECTS",
-          "GIT_REVISION",
-          "GIT_PROVIDER"
+          "NAME",
+          "IMAGE",
+          "STAGE",
+          "COMMANDS",
+          "VALUES"
         ],
         "properties": {
-            "GIT_REVISION": {
-                "type": "string",
-                "description": "branch or tag or revision to checkout (same for all projects)"
+            "NAME": {
+              "type": "string",
+              "description": "The name of the dynamic steps, index will be added"
             },
-            "GIT_PROVIDER": {
+            "IMAGE": {
                 "type": "string",
-                "description": "Name of git provider to use from Codefresh integrations screen"
+                "description": "what image should be used for the steps in the matrix"
             },
-            "GIT_PROJECTS": {
-              "description": "A list/array of git projects to checkout",
-              "type": "array",
-              "maxItems": 10,
-              "items": {
-                        "type": "string"
-                        }
+            "STAGE": {
+                "type": "string",
+                "description": "what stage in the pipeline is this matrix running in"
+            },
+            "COMMANDS": {
+                "type": "array",
+                "description": "Set the number of "
+            },
+            "VALUES": {
+              "description": "A list/array of index values",
+              "type": "string",
+            },
+            "DEPENDS": {
+                "type": "array",
+                "description": "list of dependent steps",
+                "items": {
+                  "type": "string"
+                }
+            },
+            "ENVIRONMENT": {
+                "type": "array",
+                "description": "list of environment variables",
+                "items": {
+                  "type": "object"
+                }
+            },
+            WORKING_DIRECTORY: {
+                "type": "string",
+                "description": "working directory"
             }
         }
     }
   delimiters:
     left: '[['
     right: ']]'
-  stepsTemplate: |-
+  stepsTemplate: |
     print_info_message:
-      name: kostis-codefresh/multi-git-clone
+      name: globetracker-cf/dynamic-matrix
       title: Info message
       image: alpine
       commands:
-        - echo "Checking out [[ len  .Arguments.GIT_PROJECTS ]] git projects"   
-    [[ range $index, $git_project :=.Arguments.GIT_PROJECTS ]]
-    clone_project_[[$index]]:
-      title: Cloning [[$git_project]] ...
-      type: git-clone
-      repo: '[[$git_project]]'
-      revision: [[$.Arguments.GIT_REVISION]]
-      git: [[$.Arguments.GIT_PROVIDER]]
-    [[end]]          
+        - echo "Creating [[ .Arguments.NAME ]], a dynamic 1 dimensional matrix of [[ len  .Arguments.VALUES ]] values"   
+    [[ $.Arguments.NAME ]]_step:
+      type: parallel
+      stage: [[ $.Arguments.STAGE ]]
+      steps:
+        [[ range $index, $value :=(strings.Split "," .Arguments.VALUES) ]]
+        [[ $.Arguments.NAME ]]_[[ $index ]]:
+          type: freestyle
+          title: Running step [[ $.Arguments.NAME ]] [[ $index]]
+          image: [[ $.Arguments.IMAGE ]]
+          [[ if $.Arguments.ENVIRONMENT ]]
+          environment:
+          [[ range $envValue := $.Arguments.ENVIRONMENT]]
+          - [[ $envValue.key ]]=[[ $env.Value ]]
+          [[ end ]]
+          [[ if $.Arguments.WORKING_DIRECTORY ]]
+          working_directory: [[ $.Arguments.WORKING_DIRECTORY ]]
+          [[ end ]]
+          commands:
+          [[ range $command := $.Arguments.COMMANDS]]
+          - [[ strings.ReplaceAll %project% $value $command ]]
+          [[ end ]]
+        [[ end ]]
+      [[ if $.Arguments.DEPENDS ]]
+      when:
+        steps:
+          [[ range $index, $dependOn :=$.Arguments.DEPENDS ]]
+          - name: [[ .$dependOn ]]
+          [[ end ]]
+      [[ end ]]
