@@ -1,0 +1,88 @@
+version: '1.0'
+kind: step-type
+metadata:
+  name: globetracker-cf/dynamic-matrix
+  isPublic: true
+  description: |
+    This generates a dynamic matrix of steps
+  sources:
+    - 'https://github.com/globe-tracker/cf-step-dynamic-matrix.git'
+  stage: incubating
+  maintainers:
+    - name: Julius Biskopstø
+  categories:
+    - git
+  official: false
+  tags: []
+  icon:
+    type: svg
+    url: https://cdn.worldvectorlogo.com/logos/git.svg
+    background: '#f4f4f4'
+  examples:
+    - description: example-1
+      workflow:
+        version: '1.0'
+        steps:
+          checkout_many_projects:
+            title: Checking out my Git projects
+            type: kostis-codefresh/multi-git-clone
+            arguments:
+              GIT_REVISION: 'master'
+              GIT_PROVIDER: 'github'
+              GIT_PROJECTS: 
+                - 'codefresh-contrib/ruby-on-rails-sample-app'
+                - 'kubernetes/sample-apiserver'
+                - 'kostis-codefresh/nestjs-example'
+                - 'spring-projects/spring-petclinic'
+  latest: true
+  version: 1.0.0
+spec:
+  arguments: |-
+    {
+        "definitions": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "additionalProperties": false,
+        "patterns": [],
+        "required": [
+          "GIT_PROJECTS",
+          "GIT_REVISION",
+          "GIT_PROVIDER"
+        ],
+        "properties": {
+            "GIT_REVISION": {
+                "type": "string",
+                "description": "branch or tag or revision to checkout (same for all projects)"
+            },
+            "GIT_PROVIDER": {
+                "type": "string",
+                "description": "Name of git provider to use from Codefresh integrations screen"
+            },
+            "GIT_PROJECTS": {
+              "description": "A list/array of git projects to checkout",
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                        "type": "string"
+                        }
+            }
+        }
+    }
+  delimiters:
+    left: '[['
+    right: ']]'
+  stepsTemplate: |-
+    print_info_message:
+      name: kostis-codefresh/multi-git-clone
+      title: Info message
+      image: alpine
+      commands:
+        - echo "Checking out [[ len  .Arguments.GIT_PROJECTS ]] git projects"   
+    [[ range $index, $git_project :=.Arguments.GIT_PROJECTS ]]
+    clone_project_[[$index]]:
+      title: Cloning [[$git_project]] ...
+      type: git-clone
+      repo: '[[$git_project]]'
+      revision: [[$.Arguments.GIT_REVISION]]
+      git: [[$.Arguments.GIT_PROVIDER]]
+    [[end]]          
